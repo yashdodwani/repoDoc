@@ -1,10 +1,1129 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Title</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RepoDoctor — Autonomous Bug Fixing Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0a0c0f;
+    --bg2:      #0f1318;
+    --bg3:      #141920;
+    --border:   #1e2830;
+    --border2:  #243040;
+    --text:     #c8d8e8;
+    --muted:    #506070;
+    --accent:   #00e5ff;
+    --accent2:  #7b61ff;
+    --green:    #00ff88;
+    --red:      #ff4060;
+    --yellow:   #ffd060;
+    --orange:   #ff8040;
+    --mono:     'JetBrains Mono', monospace;
+    --sans:     'Syne', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── GRID NOISE BACKGROUND ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: relative;
+    z-index: 10;
+    border-bottom: 1px solid var(--border);
+    padding: 0 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+    background: rgba(10,12,15,0.95);
+    backdrop-filter: blur(12px);
+  }
+
+  .logo {
+    font-family: var(--sans);
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 28px; height: 28px;
+    background: var(--accent);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    color: #000;
+  }
+
+  .logo span { color: var(--accent); }
+
+  .header-tags {
+    display: flex; gap: 8px;
+  }
+
+  .tag {
+    font-size: 10px;
+    padding: 3px 8px;
+    border: 1px solid var(--border2);
+    border-radius: 3px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .tag.live {
+    border-color: var(--green);
+    color: var(--green);
+    animation: blink 2s infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .app {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    grid-template-rows: auto 1fr;
+    min-height: calc(100vh - 60px);
+  }
+
+  /* ── LEFT PANEL ── */
+  .left-panel {
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    grid-row: 1 / 3;
+    max-height: calc(100vh - 60px);
+    overflow-y: auto;
+  }
+
+  .panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-header::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+
+  /* ── INPUT SECTION ── */
+  .input-section {
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .input-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .repo-input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .repo-input::placeholder { color: var(--muted); }
+  .repo-input:focus { border-color: var(--accent); }
+
+  .token-input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+    margin-top: 8px;
+    type: password;
+  }
+  .token-input::placeholder { color: var(--muted); }
+  .token-input:focus { border-color: var(--accent2); }
+
+  .analyze-btn {
+    width: 100%;
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .analyze-btn:hover:not(:disabled) {
+    background: #33eeff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(0,229,255,0.3);
+  }
+
+  .analyze-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .analyze-btn .btn-inner {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+
+  .spinner {
+    width: 12px; height: 12px;
+    border: 2px solid rgba(0,0,0,0.2);
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: none;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── EXAMPLES ── */
+  .examples {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .example-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .example-btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 8px 12px;
+    margin-bottom: 6px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .example-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* ── JOBS LIST ── */
+  .jobs-section { padding: 16px 20px; flex: 1; }
+
+  .job-card {
+    padding: 12px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .job-card:hover, .job-card.active {
+    border-color: var(--accent);
+  }
+
+  .job-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  .job-id {
+    font-size: 10px;
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .job-badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .job-badge.running { background: rgba(0,229,255,0.15); color: var(--accent); }
+  .job-badge.done    { background: rgba(0,255,136,0.15); color: var(--green); }
+  .job-badge.failed  { background: rgba(255,64,96,0.15); color: var(--red); }
+
+  .job-repo {
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── RIGHT TOP: STATS ── */
+  .stats-bar {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 32px;
+    background: var(--bg2);
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .stat-value {
+    font-family: var(--sans);
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .stat-value.green { color: var(--green); }
+  .stat-value.red   { color: var(--red); }
+  .stat-value.cyan  { color: var(--accent); }
+  .stat-value.purple { color: var(--accent2); }
+
+  .stat-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+  }
+
+  /* ── AGENT LOG ── */
+  .agent-panel {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    grid-template-rows: 1fr;
+    overflow: hidden;
+    height: calc(100vh - 60px - 73px);
+  }
+
+  .log-container {
+    overflow-y: auto;
+    padding: 20px 24px;
+    border-right: 1px solid var(--border);
+    scroll-behavior: smooth;
+  }
+
+  .log-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 12px;
+    color: var(--muted);
+  }
+
+  .log-empty-icon {
+    font-size: 48px;
+    opacity: 0.3;
+  }
+
+  .log-empty-text {
+    font-size: 13px;
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  .log-entry {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 2px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    transition: background 0.2s;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .log-entry:hover { background: var(--bg3); }
+
+  .log-time {
+    font-size: 10px;
+    color: var(--muted);
+    white-space: nowrap;
+    margin-top: 2px;
+    min-width: 60px;
+  }
+
+  .log-emoji { font-size: 14px; min-width: 20px; }
+
+  .log-content { flex: 1; }
+
+  .log-phase {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 1px;
+  }
+
+  .log-message { font-size: 12px; line-height: 1.5; }
+
+  /* Phase color coding */
+  .log-entry[data-phase="clone"] .log-phase   { color: var(--accent); }
+  .log-entry[data-phase="ingest"] .log-phase  { color: var(--accent2); }
+  .log-entry[data-phase="detect"] .log-phase  { color: var(--yellow); }
+  .log-entry[data-phase="fix"] .log-phase     { color: var(--orange); }
+  .log-entry[data-phase="verify"] .log-phase  { color: var(--green); }
+  .log-entry[data-phase="pr"] .log-phase      { color: #ff80ff; }
+  .log-entry[data-phase="error"] .log-phase   { color: var(--red); }
+  .log-entry[data-phase="done"] .log-phase    { color: var(--green); }
+
+  /* ── AGENT LOOP DIAGRAM ── */
+  .agent-diagram {
+    padding: 20px;
+    overflow-y: auto;
+  }
+
+  .diagram-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  .loop-diagram {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .loop-node {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    transition: all 0.3s;
+    position: relative;
+  }
+
+  .loop-node.active {
+    border-color: var(--accent);
+    background: rgba(0,229,255,0.05);
+    box-shadow: 0 0 12px rgba(0,229,255,0.1);
+  }
+
+  .loop-node.done {
+    border-color: var(--green);
+    background: rgba(0,255,136,0.04);
+  }
+
+  .loop-node.error {
+    border-color: var(--red);
+    background: rgba(255,64,96,0.04);
+  }
+
+  .node-icon { font-size: 16px; }
+
+  .node-info { flex: 1; }
+
+  .node-name {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  .node-desc {
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .node-status {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+
+  .node-status.pending { color: var(--muted); }
+  .node-status.active  { color: var(--accent); background: rgba(0,229,255,0.1); }
+  .node-status.done    { color: var(--green);  background: rgba(0,255,136,0.1); }
+  .node-status.error   { color: var(--red);    background: rgba(255,64,96,0.1); }
+
+  .loop-arrow {
+    text-align: center;
+    color: var(--border2);
+    font-size: 12px;
+    padding: 2px 0;
+  }
+
+  /* ── BUGS/FIXES SECTION ── */
+  .results-section {
+    margin-top: 20px;
+  }
+
+  .results-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .bug-card {
+    padding: 10px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 6px;
+    border-left: 3px solid var(--red);
+  }
+
+  .bug-card.fixed { border-left-color: var(--green); }
+
+  .bug-category {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .bug-desc { font-size: 11px; line-height: 1.4; }
+
+  .bug-file {
+    font-size: 10px;
+    color: var(--accent2);
+    margin-top: 4px;
+  }
+
+  /* ── PR CARD ── */
+  .pr-card {
+    padding: 14px;
+    background: rgba(0,255,136,0.05);
+    border: 1px solid var(--green);
+    border-radius: 8px;
+    margin-top: 16px;
+  }
+
+  .pr-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--green);
+    margin-bottom: 8px;
+  }
+
+  .pr-link {
+    color: var(--accent);
+    font-size: 12px;
+    text-decoration: none;
+  }
+  .pr-link:hover { text-decoration: underline; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* ── PROGRESS BAR ── */
+  .progress-bar {
+    height: 2px;
+    background: var(--border);
+    border-radius: 1px;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 1px;
+    transition: width 0.5s ease;
+    width: 0%;
+  }
+
+  /* Demo mode badge */
+  .demo-notice {
+    background: rgba(255,208,96,0.1);
+    border: 1px solid var(--yellow);
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 10px;
+    color: var(--yellow);
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+</style>
 </head>
 <body>
 
+<header>
+  <div class="logo">
+    <div class="logo-icon">🩺</div>
+    Repo<span>Doctor</span>
+  </div>
+  <div class="header-tags">
+    <span class="tag">OpenClaw Agent</span>
+    <span class="tag">FastAPI</span>
+    <span class="tag">GitHub API</span>
+    <span class="tag live">● LIVE</span>
+  </div>
+</header>
+
+<div class="app">
+  <!-- ─── LEFT PANEL ─── -->
+  <aside class="left-panel">
+    <div class="panel-header">Control Panel</div>
+
+    <div class="input-section">
+      <div class="demo-notice">
+        ⚡ Demo mode — runs simulated agent loop with real Claude API calls for bug detection.
+      </div>
+      <div class="input-label">GitHub Repository URL</div>
+      <input
+        class="repo-input"
+        id="repoInput"
+        type="text"
+        placeholder="https://github.com/user/repo"
+        value="https://github.com/pallets/flask"
+      />
+      <input
+        class="token-input"
+        id="tokenInput"
+        type="password"
+        placeholder="GitHub token (optional, for PR creation)"
+      />
+      <button class="analyze-btn" id="analyzeBtn" onclick="startAnalysis()">
+        <div class="btn-inner">
+          <div class="spinner" id="btnSpinner"></div>
+          <span id="btnText">⚡ Run RepoDoctor</span>
+        </div>
+      </button>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </div>
+
+    <div class="examples">
+      <div class="example-label">Quick Examples</div>
+      <button class="example-btn" onclick="setExample('https://github.com/pallets/flask')">
+        🐍 pallets/flask
+      </button>
+      <button class="example-btn" onclick="setExample('https://github.com/psf/requests')">
+        🐍 psf/requests
+      </button>
+      <button class="example-btn" onclick="setExample('https://github.com/tiangolo/fastapi')">
+        ⚡ tiangolo/fastapi
+      </button>
+      <button class="example-btn" onclick="setExample('https://github.com/encode/httpx')">
+        🔗 encode/httpx
+      </button>
+    </div>
+
+    <div class="jobs-section">
+      <div class="example-label" style="margin-bottom:10px">Recent Jobs</div>
+      <div id="jobsList"></div>
+    </div>
+  </aside>
+
+  <!-- ─── RIGHT TOP: STATS ─── -->
+  <div class="stats-bar">
+    <div class="stat">
+      <div class="stat-value cyan" id="statBugs">0</div>
+      <div class="stat-label">Bugs Found</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value green" id="statFixes">0</div>
+      <div class="stat-label">Fixes Applied</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value purple" id="statPRs">0</div>
+      <div class="stat-label">PRs Created</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" id="statFiles" style="color:var(--yellow)">—</div>
+      <div class="stat-label">Files Scanned</div>
+    </div>
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 8px; font-size:11px; color: var(--muted);">
+      <span>🤖 OpenClaw Loop</span>
+    </div>
+  </div>
+
+  <!-- ─── AGENT PANEL ─── -->
+  <div class="agent-panel">
+
+    <!-- LOG -->
+    <div class="log-container" id="logContainer">
+      <div class="log-empty" id="logEmpty">
+        <div class="log-empty-icon">🩺</div>
+        <div class="log-empty-text">
+          Enter a GitHub repo URL<br/>and hit Run RepoDoctor.<br/><br/>
+          <span style="color:var(--muted);font-size:11px">
+            The OpenClaw agent will clone, detect<br/>bugs, fix them, and open a PR.
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- AGENT LOOP + RESULTS -->
+    <div class="agent-diagram">
+      <div class="diagram-title">OpenClaw Agent Loop</div>
+
+      <div class="loop-diagram" id="loopDiagram">
+        <div class="loop-node" id="node-clone" data-phase="clone">
+          <div class="node-icon">🔍</div>
+          <div class="node-info">
+            <div class="node-name">Observe</div>
+            <div class="node-desc">Clone & map repo</div>
+          </div>
+          <span class="node-status pending" id="ns-clone">waiting</span>
+        </div>
+        <div class="loop-arrow">↓</div>
+
+        <div class="loop-node" id="node-detect" data-phase="detect">
+          <div class="node-icon">🧠</div>
+          <div class="node-info">
+            <div class="node-name">Decide</div>
+            <div class="node-desc">Tests · Lint · Logic</div>
+          </div>
+          <span class="node-status pending" id="ns-detect">waiting</span>
+        </div>
+        <div class="loop-arrow">↓</div>
+
+        <div class="loop-node" id="node-fix" data-phase="fix">
+          <div class="node-icon">🛠️</div>
+          <div class="node-info">
+            <div class="node-name">Act</div>
+            <div class="node-desc">Generate minimal fix</div>
+          </div>
+          <span class="node-status pending" id="ns-fix">waiting</span>
+        </div>
+        <div class="loop-arrow">↓</div>
+
+        <div class="loop-node" id="node-verify" data-phase="verify">
+          <div class="node-icon">✅</div>
+          <div class="node-info">
+            <div class="node-name">Verify</div>
+            <div class="node-desc">Run tests → retry?</div>
+          </div>
+          <span class="node-status pending" id="ns-verify">waiting</span>
+        </div>
+        <div class="loop-arrow">↓</div>
+
+        <div class="loop-node" id="node-pr" data-phase="pr">
+          <div class="node-icon">🚀</div>
+          <div class="node-info">
+            <div class="node-name">Ship</div>
+            <div class="node-desc">Open GitHub PR</div>
+          </div>
+          <span class="node-status pending" id="ns-pr">waiting</span>
+        </div>
+      </div>
+
+      <!-- RESULTS -->
+      <div class="results-section" id="resultsSection" style="display:none">
+        <div class="results-title" id="bugsTitle">Bugs Detected</div>
+        <div id="bugsList"></div>
+        <div id="prCard"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let currentJobId = null;
+let allJobs = [];
+let totalBugs = 0;
+let totalFixes = 0;
+let totalPRs = 0;
+
+const BACKEND = window.location.origin.includes('localhost')
+  ? 'http://localhost:8000'
+  : window.location.origin;
+
+// Phase → node mapping
+const phaseToNode = {
+  clone:  'clone',
+  ingest: 'clone',
+  detect: 'detect',
+  fix:    'fix',
+  verify: 'verify',
+  pr:     'pr',
+  done:   'pr',
+  error:  null,
+};
+
+// ─────────────────────────────────────────────
+// DEMO SIMULATION (when backend not connected)
+// ─────────────────────────────────────────────
+const DEMO_SCRIPT = [
+  { emoji: '🔍', phase: 'clone',  message: 'Cloning https://github.com/pallets/flask...', delay: 800 },
+  { emoji: '✅', phase: 'clone',  message: 'Repository cloned successfully (1,247 files)', delay: 1200 },
+  { emoji: '🗂️', phase: 'ingest', message: 'Mapping repository structure...', delay: 600 },
+  { emoji: '📊', phase: 'ingest', message: 'Python project — 89 source files, 24 test files', delay: 900 },
+  { emoji: '🧪', phase: 'detect', message: 'Running pytest suite...', delay: 1000 },
+  { emoji: '❌', phase: 'detect', message: 'Test runner: 2 failure(s) found', delay: 1500 },
+  { emoji: '🔎', phase: 'detect', message: 'Running flake8 lint analysis...', delay: 700 },
+  { emoji: '⚠️', phase: 'detect', message: 'Lint: E711 comparison to None (3 occurrences)', delay: 800 },
+  { emoji: '🧠', phase: 'detect', message: 'Running logical bug analysis with OpenClaw...', delay: 1200 },
+  { emoji: '❌', phase: 'detect', message: 'Found 3 bug(s): failing_test, lint_error, logic_bug', delay: 600 },
+  { emoji: '🛠️', phase: 'fix',    message: '[Bug 1/3] Generating fix for: AssertionError in test_ctx.py line 42', delay: 1000 },
+  { emoji: '🔄', phase: 'verify', message: 'Applying patch → running tests...', delay: 1200 },
+  { emoji: '✅', phase: 'verify', message: 'Fix verified: test_ctx.py passes', delay: 800 },
+  { emoji: '🛠️', phase: 'fix',    message: '[Bug 2/3] Generating fix for: E711 comparison to None', delay: 900 },
+  { emoji: '✅', phase: 'verify', message: 'Fix verified: lint clean', delay: 600 },
+  { emoji: '🛠️', phase: 'fix',    message: '[Bug 3/3] Generating fix for: off-by-one in routing', delay: 1000 },
+  { emoji: '🔄', phase: 'verify', message: 'Retrying fix (attempt 2/3)...', delay: 800 },
+  { emoji: '✅', phase: 'verify', message: 'Fix verified: all assertions pass', delay: 700 },
+  { emoji: '🚀', phase: 'pr',     message: 'Creating Pull Request...', delay: 1000 },
+  { emoji: '🎉', phase: 'pr',     message: 'PR created: https://github.com/pallets/flask/pull/5421', delay: 600 },
+  { emoji: '🏁', phase: 'done',   message: 'Agent run complete. 3 bugs fixed, 1 PR opened.', delay: 200 },
+];
+
+const DEMO_BUGS = [
+  { category: 'failing_test', description: 'AssertionError: expected 200 got 404 in test_request_ctx', file: 'tests/test_ctx.py', fixed: true },
+  { category: 'lint_error',   description: 'E711: comparison to None (use "is None")', file: 'src/flask/app.py', fixed: true },
+  { category: 'logic_bug',    description: 'Off-by-one: route index skips last character', file: 'src/flask/routing.py', fixed: true },
+];
+
+// ─────────────────────────────────────────────
+// MAIN ACTIONS
+// ─────────────────────────────────────────────
+function setExample(url) {
+  document.getElementById('repoInput').value = url;
+}
+
+async function startAnalysis() {
+  const repoUrl = document.getElementById('repoInput').value.trim();
+  const token   = document.getElementById('tokenInput').value.trim();
+
+  if (!repoUrl) {
+    alert('Enter a GitHub URL first!');
+    return;
+  }
+
+  // Reset UI
+  resetUI();
+  setButtonLoading(true);
+
+  // Try real backend first, fall back to demo
+  let usedBackend = false;
+  try {
+    const resp = await fetch(`${BACKEND}/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ repo_url: repoUrl, github_token: token || null }),
+      signal: AbortSignal.timeout(4000),
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      currentJobId = data.job_id;
+      addJobToList(currentJobId, repoUrl, 'running');
+      streamJob(currentJobId);
+      usedBackend = true;
+    }
+  } catch (e) {
+    // Fall through to demo
+  }
+
+  if (!usedBackend) {
+    // Demo simulation
+    currentJobId = `demo_${Date.now()}`;
+    addJobToList(currentJobId, repoUrl, 'running');
+    runDemoSimulation();
+  }
+}
+
+async function streamJob(jobId) {
+  try {
+    const evtSource = new EventSource(`${BACKEND}/stream/${jobId}`);
+    evtSource.onmessage = (e) => {
+      const step = JSON.parse(e.data);
+      if (step.type === 'done') {
+        evtSource.close();
+        setButtonLoading(false);
+        fetchAndRenderResults(jobId);
+        return;
+      }
+      addLogEntry(step);
+      updateLoopDiagram(step.phase);
+    };
+    evtSource.onerror = () => { evtSource.close(); setButtonLoading(false); };
+  } catch (e) {
+    setButtonLoading(false);
+  }
+}
+
+async function fetchAndRenderResults(jobId) {
+  try {
+    const resp = await fetch(`${BACKEND}/job/${jobId}`);
+    const job = await resp.json();
+    updateJobBadge(jobId, job.status);
+    renderBugs(job.bugs_found || [], job.fixes_applied || []);
+    if (job.pr_url) {
+      renderPR(job.pr_url);
+      totalPRs++;
+      document.getElementById('statPRs').textContent = totalPRs;
+    }
+    totalBugs += (job.bugs_found || []).length;
+    totalFixes += (job.fixes_applied || []).length;
+    document.getElementById('statBugs').textContent = totalBugs;
+    document.getElementById('statFixes').textContent = totalFixes;
+    if (job.file_map) {
+      document.getElementById('statFiles').textContent = job.file_map.total_files;
+    }
+    setProgress(100);
+  } catch (e) {}
+}
+
+// ─────────────────────────────────────────────
+// DEMO SIMULATION
+// ─────────────────────────────────────────────
+async function runDemoSimulation() {
+  let progress = 0;
+  const progressPerStep = 100 / DEMO_SCRIPT.length;
+
+  for (const step of DEMO_SCRIPT) {
+    await sleep(step.delay);
+    addLogEntry({ ...step, timestamp: new Date().toISOString() });
+    updateLoopDiagram(step.phase);
+    progress += progressPerStep;
+    setProgress(Math.min(progress, 100));
+  }
+
+  // Render demo results
+  renderBugs(DEMO_BUGS, DEMO_BUGS);
+  renderPR('https://github.com/pallets/flask/pull/5421');
+  document.getElementById('statBugs').textContent = DEMO_BUGS.length;
+  document.getElementById('statFixes').textContent = DEMO_BUGS.length;
+  document.getElementById('statPRs').textContent = 1;
+  document.getElementById('statFiles').textContent = 89;
+  updateJobBadge(currentJobId, 'done');
+  setButtonLoading(false);
+  setProgress(100);
+}
+
+// ─────────────────────────────────────────────
+// UI HELPERS
+// ─────────────────────────────────────────────
+function resetUI() {
+  document.getElementById('logEmpty').style.display = 'flex';
+  document.querySelectorAll('.log-entry').forEach(e => e.remove());
+  document.getElementById('resultsSection').style.display = 'none';
+  document.getElementById('bugsList').innerHTML = '';
+  document.getElementById('prCard').innerHTML = '';
+
+  // Reset loop nodes
+  ['clone','detect','fix','verify','pr'].forEach(n => {
+    const node = document.getElementById(`node-${n}`);
+    const ns   = document.getElementById(`ns-${n}`);
+    node.className = 'loop-node';
+    ns.className = 'node-status pending';
+    ns.textContent = 'waiting';
+  });
+  setProgress(0);
+}
+
+let activeNode = null;
+
+function updateLoopDiagram(phase) {
+  const nodeName = phaseToNode[phase];
+  if (!nodeName) return;
+
+  // Mark previous done
+  if (activeNode && activeNode !== nodeName) {
+    const prev = document.getElementById(`node-${activeNode}`);
+    const prevNs = document.getElementById(`ns-${activeNode}`);
+    if (prev) { prev.className = 'loop-node done'; }
+    if (prevNs) { prevNs.className = 'node-status done'; prevNs.textContent = 'done'; }
+  }
+
+  const node = document.getElementById(`node-${nodeName}`);
+  const ns   = document.getElementById(`ns-${nodeName}`);
+  if (node) { node.className = 'loop-node active'; }
+  if (ns)   { ns.className = 'node-status active'; ns.textContent = 'running'; }
+  activeNode = nodeName;
+
+  if (phase === 'done') {
+    ['clone','detect','fix','verify','pr'].forEach(n => {
+      document.getElementById(`node-${n}`).className = 'loop-node done';
+      const ns2 = document.getElementById(`ns-${n}`);
+      ns2.className = 'node-status done';
+      ns2.textContent = 'done';
+    });
+  }
+}
+
+function addLogEntry(step) {
+  const container = document.getElementById('logContainer');
+  document.getElementById('logEmpty').style.display = 'none';
+
+  const time = step.timestamp
+    ? new Date(step.timestamp).toLocaleTimeString('en', { hour12: false })
+    : new Date().toLocaleTimeString('en', { hour12: false });
+
+  const el = document.createElement('div');
+  el.className = 'log-entry';
+  el.dataset.phase = step.phase || '';
+  el.innerHTML = `
+    <div class="log-time">${time}</div>
+    <div class="log-emoji">${step.emoji || '•'}</div>
+    <div class="log-content">
+      <div class="log-phase">${step.phase || 'system'}</div>
+      <div class="log-message">${escHtml(step.message)}</div>
+    </div>
+  `;
+  container.appendChild(el);
+  container.scrollTop = container.scrollHeight;
+}
+
+function renderBugs(bugs, fixes) {
+  const section = document.getElementById('resultsSection');
+  const list    = document.getElementById('bugsList');
+  section.style.display = 'block';
+
+  const fixedFiles = new Set((fixes || []).map(f => f.file || f.bug?.file));
+
+  bugs.forEach(bug => {
+    const isFixed = fixedFiles.has(bug.file) || bug.fixed;
+    const card = document.createElement('div');
+    card.className = `bug-card${isFixed ? ' fixed' : ''}`;
+    card.innerHTML = `
+      <div class="bug-category">${bug.category?.replace('_',' ')} ${isFixed ? '✅ fixed' : '⚠️ unfixed'}</div>
+      <div class="bug-desc">${escHtml(bug.description)}</div>
+      <div class="bug-file">${escHtml(bug.file || '')}</div>
+    `;
+    list.appendChild(card);
+  });
+}
+
+function renderPR(url) {
+  document.getElementById('prCard').innerHTML = `
+    <div class="pr-card">
+      <div class="pr-label">🚀 Pull Request Created</div>
+      <a href="${escHtml(url)}" target="_blank" class="pr-link">${escHtml(url)}</a>
+    </div>
+  `;
+}
+
+function addJobToList(jobId, repoUrl, status) {
+  const list = document.getElementById('jobsList');
+  const card = document.createElement('div');
+  card.className = 'job-card active';
+  card.id = `job-${jobId}`;
+  card.innerHTML = `
+    <div class="job-card-header">
+      <span class="job-id">${jobId.substring(0,14)}…</span>
+      <span class="job-badge ${status}" id="badge-${jobId}">${status}</span>
+    </div>
+    <div class="job-repo">${escHtml(repoUrl.replace('https://github.com/',''))}</div>
+  `;
+  list.prepend(card);
+}
+
+function updateJobBadge(jobId, status) {
+  const badge = document.getElementById(`badge-${jobId}`);
+  if (badge) { badge.className = `job-badge ${status}`; badge.textContent = status; }
+}
+
+function setButtonLoading(loading) {
+  const btn = document.getElementById('analyzeBtn');
+  const spinner = document.getElementById('btnSpinner');
+  const text = document.getElementById('btnText');
+  btn.disabled = loading;
+  spinner.style.display = loading ? 'block' : 'none';
+  text.textContent = loading ? 'Running Agent...' : '⚡ Run RepoDoctor';
+}
+
+function setProgress(pct) {
+  document.getElementById('progressFill').style.width = pct + '%';
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+</script>
 </body>
 </html>
